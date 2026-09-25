@@ -24,13 +24,17 @@ import { COLORS, TvT_RULES } from '../utils/constants'
 function HomePage() {
   const navigate = useNavigate()
 
-  const { data: statusData, isLoading: statusLoading } = useQuery({
+  const { data: statusData, isLoading: statusLoading, error: statusError } = useQuery({
     queryKey: ['status'],
     queryFn: async () => {
       const res = await api.get('/status')
       return res.data.data
     },
-    refetchInterval: 5 * 60 * 1000, // ogni 5 minuti
+    staleTime: 0,          // considera sempre i dati stale → rifetch ad ogni mount
+    gcTime: 0,             // non tenere in cache tra navigazioni
+    refetchInterval: 5 * 60 * 1000,
+    retry: 3,
+    retryDelay: 2000,
   })
 
   return (
@@ -102,6 +106,10 @@ function HomePage() {
                 </Typography>
               </Grid>
             </Grid>
+          ) : statusError ? (
+            <Alert severity="error">
+              Impossibile contattare il backend: {statusError.message}
+            </Alert>
           ) : (
             <Alert severity="warning">
               Lega non inizializzata. Contatta l&apos;amministratore per avviare il primo scraping.
