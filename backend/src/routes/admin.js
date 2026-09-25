@@ -2,6 +2,7 @@ const { Router } = require('express')
 const adminAuth = require('../middleware/adminAuth')
 const {
   initScrape,
+  resetAndInit,
   scrapeMatchday,
   scrapeAll,
   recalculateAll,
@@ -27,6 +28,9 @@ router.get('/debug/scores/:matchday', adminAuth, debugScores)
 // ─── Scraping (protetti da adminAuth) ────────────────────────────────────────
 // POST /api/scrape/init — inizializzazione lega (squadre + impostazioni)
 router.post('/scrape/init', adminAuth, initScrape)
+
+// POST /api/scrape/reset — cancella DB e reinizializza da zero
+router.post('/scrape/reset', adminAuth, resetAndInit)
 
 // POST /api/scrape/cookie — aggiorna il cookie FCLeague2026 in memoria
 router.post('/scrape/cookie', adminAuth, updateCookie)

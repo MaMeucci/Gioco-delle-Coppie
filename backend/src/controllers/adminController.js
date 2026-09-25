@@ -1,6 +1,6 @@
 const scrapingService = require('../services/scrapingService')
 const tvtCalculationService = require('../services/tvtCalculationService')
-const { LeagueSettings, MatchdayScore } = require('../models')
+const { LeagueSettings, MatchdayScore, Team, TvtResult } = require('../models')
 const scraperConfig = require('../config/scraper')
 
 /**
@@ -319,8 +319,49 @@ const debugScores = async (req, res) => {
   }
 }
 
+/**
+ * POST /api/scrape/reset
+ * Cancella tutti i dati della stagione dal DB e reinizializza da zero.
+ */
+const resetAndInit = async (req, res) => {
+  try {
+    const season = req.query.season || scraperConfig.season
+    console.log('[Admin] RESET DB season:', season)
+
+    const [t, ms, tvt, ls] = await Promise.all([
+      Team.deleteMany({ season }),
+      MatchdayScore.deleteMany({ season }),
+      TvtResult.deleteMany({ season }),
+      LeagueSettings.deleteMany({ season, legaSlug: scraperConfig.legaSlug }),
+    ])
+    console.log(`[Admin] Cancellati: ${t.deletedCount} team, ${ms.deletedCount} scores, ${tvt.deletedCount} tvt, ${ls.deletedCount} settings`)
+
+    const result = await scrapingService.initScraping()
+
+    return res.json({
+      success: true,
+      message: 'Reset e reinizializzazione completati',
+      data: {
+        deleted: { teams: t.deletedCount, scores: ms.deletedCount, tvt: tvt.deletedCount },
+        teamsCount: result.teams.length,
+        serieA: result.teams.filter(x => x.serie === 'A').length,
+        serieB: result.teams.filter(x => x.serie === 'B').length,
+        settings: {
+          punteggiBase: result.settings.punteggiBase,
+          puntiPerGol: result.settings.puntiPerGol,
+          lastAvailableMatchday: result.settings.lastAvailableMatchday,
+        },
+      },
+    })
+  } catch (err) {
+    console.error('[Admin/reset] Errore:', err.message)
+    return res.status(500).json({ success: false, message: err.message })
+  }
+}
+
 module.exports = {
   initScrape,
+  resetAndInit,
   scrapeMatchday,
   scrapeAll,
   recalculateAll,
