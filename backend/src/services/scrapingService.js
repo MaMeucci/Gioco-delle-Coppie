@@ -138,45 +138,81 @@ async function login() {
 // ─── Cookie legacy (FCLeague2026) ────────────────────────────────────────────
 
 /**
- * Il cookie FCLeague2026 è un cookie HttpOnly impostato dal sito ASP.NET.
- * Non è ottenibile automaticamente senza un vero browser (CAPTCHA/JS challenge).
- *
- * STRATEGIA: il cookie viene letto da FC_LEGACY_COOKIE nel .env e iniettato
- * nel cookieJar. Scade ogni ~8 giorni — va aggiornato manualmente oppure
- * tramite l'endpoint admin POST /api/scrape/cookie.
- *
- * Per ottenere il valore:
- *   1. Apri il browser, accedi a leghe.fantacalcio.it
- *   2. DevTools → Application → Cookies → FCLeague2026
- *   3. Copia il valore e aggiornalo in FC_LEGACY_COOKIE nel .env
+ * Ottiene il cookie FCLeague2026 automaticamente tramite login.
+ * Il cookie viene restituito nell'header Set-Cookie dalla risposta di login
+ * dell'endpoint /onboarding/v1/login — non serve un browser.
+ * Scade ogni ~8 giorni ma viene riottenuto automaticamente ad ogni avvio.
  */
 async function loginLegacy() {
   if (sessionState.legacyCookiesReady) return
 
-  const cookieValue = process.env.FC_LEGACY_COOKIE
-  if (!cookieValue) {
-    console.warn('[Scraper] ⚠️  FC_LEGACY_COOKIE non configurato nel .env — classificagiornate potrebbe fallire con AD05')
-    return
-  }
-
   const legacyBaseUrl = 'https://leghe.fantacalcio.it'
   const slug = scraperConfig.legaSlug
 
+  // Prima prova: usa il cookie salvato in .env (fallback manuale)
+  const savedCookie = process.env.FC_LEGACY_COOKIE
+  if (savedCookie) {
+    try {
+      await cookieJar.setCookie(
+        `FCLeague2026=${savedCookie}; Domain=.fantacalcio.it; Path=/; Secure; SameSite=None`,
+        legacyBaseUrl
+      )
+      sessionState.legacyCookiesReady = true
+      console.log('[Scraper] Cookie FCLeague2026 caricato da FC_LEGACY_COOKIE ✅')
+      return
+    } catch (e) {
+      console.warn('[Scraper] Errore caricamento cookie da .env:', e.message)
+    }
+  }
+
+  // Seconda prova: ottieni il cookie automaticamente dal login
+  console.log('[Scraper] FC_LEGACY_COOKIE non configurato — ottengo cookie via login automatico...')
   try {
-    // Inietta il cookie FCLeague2026 nel jar
-    await cookieJar.setCookie(
-      `FCLeague2026=${cookieValue}; Domain=.fantacalcio.it; Path=/; Secure; SameSite=None`,
-      `${legacyBaseUrl}`
-    )
-    // Inietta anche il cookie della competizione (necessario per il contesto)
-    await cookieJar.setCookie(
-      `comp_${slug}_FCLeague2026=0=336979; Domain=.fantacalcio.it; Path=/; Secure; SameSite=None`,
-      `${legacyBaseUrl}`
-    )
-    sessionState.legacyCookiesReady = true
-    console.log('[Scraper] Cookie FCLeague2026 iniettato dal .env ✅')
+    const { username, password } = scraperConfig
+    if (!username || !password) {
+      console.warn('[Scraper] ⚠️  FC_USERNAME/FC_PASSWORD non configurati — impossibile ottenere cookie')
+      return
+    }
+
+    // Usa axios con cookie jar per catturare il Set-Cookie dal login
+    const loginClient = wrapper(axios.create({
+      baseURL: scraperConfig.apiBaseUrl,
+      jar: cookieJar,
+      withCredentials: true,
+      timeout: scraperConfig.requestTimeout,
+      headers: { app_key: scraperConfig.appKey, 'Content-Type': 'application/json' },
+    }))
+
+    await loginClient.post('/onboarding/v1/login', { username, password })
+
+    // Il cookie jar ha ora FCLeague2026 dal Set-Cookie della risposta
+    const cookies = await cookieJar.getCookies(legacyBaseUrl)
+    const fcCookie = cookies.find(c => c.key === 'FCLeague2026')
+
+    if (fcCookie) {
+      // Salva in memoria per i prossimi usi
+      process.env.FC_LEGACY_COOKIE = fcCookie.value
+      sessionState.legacyCookiesReady = true
+      console.log('[Scraper] Cookie FCLeague2026 ottenuto automaticamente via login ✅')
+    } else {
+      // Il cookie potrebbe essere su dominio diverso — controlla apileague
+      const cookiesApi = await cookieJar.getCookies('https://apileague.fantacalcio.it')
+      const fcCookieApi = cookiesApi.find(c => c.key === 'FCLeague2026')
+      if (fcCookieApi) {
+        // Re-inietta sul dominio corretto per le chiamate legacy
+        await cookieJar.setCookie(
+          `FCLeague2026=${fcCookieApi.value}; Domain=.fantacalcio.it; Path=/; Secure; SameSite=None`,
+          legacyBaseUrl
+        )
+        process.env.FC_LEGACY_COOKIE = fcCookieApi.value
+        sessionState.legacyCookiesReady = true
+        console.log('[Scraper] Cookie FCLeague2026 re-iniettato da apileague ✅')
+      } else {
+        console.warn('[Scraper] ⚠️  Cookie FCLeague2026 non trovato dopo login — classificagiornate potrebbe fallire')
+      }
+    }
   } catch (e) {
-    console.error('[Scraper] Errore iniezione cookie:', e.message)
+    console.warn('[Scraper] Errore login automatico per cookie:', e.message)
   }
 }
 
