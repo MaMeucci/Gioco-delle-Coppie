@@ -34,15 +34,15 @@ const MEDAL_COLORS = {
 }
 
 const COLUMNS = [
-  { id: 'pos', label: '#', align: 'center', width: 44 },
-  { id: 'team', label: 'Squadra', align: 'left', minWidth: 160 },
-  { id: 'pg', label: 'PG', align: 'center', width: 44 },
-  { id: 'w', label: 'V', align: 'center', width: 40 },
-  { id: 'd', label: 'N', align: 'center', width: 40 },
-  { id: 'l', label: 'S', align: 'center', width: 40 },
-  { id: 'pt', label: 'Pt TvT', align: 'center', width: 68 },
+  { id: 'pos', label: '#', align: 'center', width: 38 },
+  { id: 'team', label: 'Squadra', align: 'left', width: 190 },
+  { id: 'pg', label: 'PG', align: 'center', width: 42 },
+  { id: 'w', label: 'V', align: 'center', width: 38 },
+  { id: 'd', label: 'N', align: 'center', width: 38 },
+  { id: 'l', label: 'S', align: 'center', width: 38 },
+  { id: 'pt', label: 'Pt TvT', align: 'center', width: 62 },
   { id: 'avg', label: 'Media FP', align: 'center', width: 72 },
-  { id: 'gov', label: 'GoV tot', align: 'center', width: 64 },
+  { id: 'gov', label: 'GoV tot', align: 'center', width: 58 },
 ]
 
 function StandingsTable({ standings, isLoading, serie }) {
@@ -67,8 +67,22 @@ function StandingsTable({ standings, isLoading, serie }) {
   }
 
   return (
-    <TableContainer component={Paper} sx={{ mt: 1.5, borderRadius: 2, border: '1px solid #e8e8e8', boxShadow: 'none', overflowX: 'auto' }}>
-      <Table size="small" sx={{ minWidth: 560 }}>
+    <TableContainer
+      component={Paper}
+      sx={{
+        mt: 1.5,
+        borderRadius: 2,
+        border: '1px solid #e8e8e8',
+        boxShadow: 'none',
+        overflowX: 'auto',
+      }}
+    >
+      <Table size="small" sx={{ width: '100%', minWidth: 540 }}>
+        <colgroup>
+          {COLUMNS.map((col) => (
+            <col key={col.id} style={{ width: col.width }} />
+          ))}
+        </colgroup>
         <TableHead>
           <TableRow sx={{ bgcolor: color }}>
             {COLUMNS.map((col) => (
@@ -79,10 +93,8 @@ function StandingsTable({ standings, isLoading, serie }) {
                   color: 'white',
                   fontWeight: 700,
                   py: 0.75,
-                  px: 1,
+                  px: 0.75,
                   fontSize: '0.8rem',
-                  width: col.width || 'auto',
-                  minWidth: col.minWidth || 'auto',
                   whiteSpace: 'nowrap',
                 }}
               >
@@ -104,7 +116,7 @@ function StandingsTable({ standings, isLoading, serie }) {
                 }}
               >
                 {/* Posizione */}
-                <TableCell align="center" sx={{ width: 44, py: 0.5, px: 0.5 }}>
+                <TableCell align="center" sx={{ py: 0.5, px: 0.5 }}>
                   {medal ? (
                     <Tooltip title={`${pos}° posto`}>
                       <span style={{ fontSize: 18 }}>{medal.label}</span>
@@ -126,6 +138,7 @@ function StandingsTable({ standings, isLoading, serie }) {
                         fontSize: 11,
                         bgcolor: color,
                         fontWeight: 700,
+                        flexShrink: 0,
                       }}
                     >
                       {team.teamName?.[0]?.toUpperCase() || '?'}
@@ -137,33 +150,33 @@ function StandingsTable({ standings, isLoading, serie }) {
                 </TableCell>
 
                 {/* Giornate giocate */}
-                <TableCell align="center" sx={{ py: 0.5, px: 0.75 }}>
+                <TableCell align="center" sx={{ py: 0.5, px: 0.5 }}>
                   <Typography variant="body2" fontSize="0.85rem">{team.matchdaysPlayed}</Typography>
                 </TableCell>
 
                 {/* Vittorie */}
-                <TableCell align="center" sx={{ py: 0.5, px: 0.75 }}>
+                <TableCell align="center" sx={{ py: 0.5, px: 0.5 }}>
                   <Typography variant="body2" color={COLORS.win} fontWeight={600} fontSize="0.85rem">
                     {team.totalWins}
                   </Typography>
                 </TableCell>
 
                 {/* Pareggi */}
-                <TableCell align="center" sx={{ py: 0.5, px: 0.75 }}>
+                <TableCell align="center" sx={{ py: 0.5, px: 0.5 }}>
                   <Typography variant="body2" color={COLORS.draw} fontWeight={600} fontSize="0.85rem">
                     {team.totalDraws}
                   </Typography>
                 </TableCell>
 
                 {/* Sconfitte */}
-                <TableCell align="center" sx={{ py: 0.5, px: 0.75 }}>
+                <TableCell align="center" sx={{ py: 0.5, px: 0.5 }}>
                   <Typography variant="body2" color={COLORS.loss} fontWeight={600} fontSize="0.85rem">
                     {team.totalLosses}
                   </Typography>
                 </TableCell>
 
                 {/* Punti TvT */}
-                <TableCell align="center" sx={{ py: 0.5, px: 0.75 }}>
+                <TableCell align="center" sx={{ py: 0.5, px: 0.5 }}>
                   <Chip
                     label={team.totalTvtPoints}
                     size="small"
@@ -180,12 +193,12 @@ function StandingsTable({ standings, isLoading, serie }) {
                 </TableCell>
 
                 {/* Media fantapunteggio */}
-                <TableCell align="center" sx={{ py: 0.5, px: 0.75 }}>
+                <TableCell align="center" sx={{ py: 0.5, px: 0.5 }}>
                   <Typography variant="body2" fontSize="0.85rem">{(team.avgAdjustedScore ?? team.avgFantaScore)?.toFixed(1)}</Typography>
                 </TableCell>
 
                 {/* Gol virtuali totali */}
-                <TableCell align="center" sx={{ py: 0.5, px: 0.75 }}>
+                <TableCell align="center" sx={{ py: 0.5, px: 0.5 }}>
                   <Typography variant="body2" fontSize="0.85rem">{team.totalVirtualGoals}</Typography>
                 </TableCell>
               </TableRow>
@@ -212,26 +225,26 @@ function StandingsPage() {
   })
 
   return (
-    <Box sx={{ maxWidth: 880, mx: 'auto' }}>
+    <Box sx={{ maxWidth: 680, mx: 'auto' }}>
       {/* Header */}
       <Card
         sx={{
-          mb: 3,
+          mb: 2.5,
           background: `linear-gradient(135deg, ${color} 0%, ${color}99 100%)`,
           color: 'white',
         }}
       >
-        <CardContent>
+        <CardContent sx={{ py: 2 }}>
           <Stack direction="row" alignItems="center" spacing={2}>
-            <EmojiEventsIcon sx={{ fontSize: 36 }} />
+            <EmojiEventsIcon sx={{ fontSize: 32 }} />
             <Box>
-              <Typography variant="h5" fontWeight={800}>
+              <Typography variant="h6" fontWeight={800}>
                 Classifica Tutti vs Tutti
               </Typography>
               <Chip
                 label={`SERIE ${serie}`}
                 size="small"
-                sx={{ bgcolor: 'rgba(255,255,255,0.25)', color: 'white', fontWeight: 700, mt: 0.5 }}
+                sx={{ bgcolor: 'rgba(255,255,255,0.25)', color: 'white', fontWeight: 700, mt: 0.25 }}
               />
             </Box>
           </Stack>
@@ -258,11 +271,17 @@ function StandingsPage() {
 
       {/* Classifica */}
       <Card>
-        <CardContent>
-          <Stack direction="row" justifyContent="space-between" alignItems="center" mb={1}>
+        <CardContent sx={{ p: { xs: 1.5, sm: 2 } }}>
+          <Stack
+            direction={{ xs: 'column', sm: 'row' }}
+            justifyContent="space-between"
+            alignItems={{ xs: 'flex-start', sm: 'center' }}
+            spacing={0.5}
+            mb={1}
+          >
             <Stack direction="row" alignItems="center" spacing={1}>
-              <LeaderboardIcon sx={{ color }} />
-              <Typography variant="subtitle1" fontWeight={600}>
+              <LeaderboardIcon sx={{ color, fontSize: 20 }} />
+              <Typography variant="subtitle2" fontWeight={700}>
                 Stagione {data?.season || '—'} · {data?.standings?.length || 0} squadre
               </Typography>
             </Stack>
