@@ -276,8 +276,8 @@ function StandingsPage() {
             direction={{ xs: 'column', sm: 'row' }}
             justifyContent="space-between"
             alignItems={{ xs: 'flex-start', sm: 'center' }}
-            spacing={0.5}
-            mb={1}
+            spacing={1}
+            mb={1.5}
           >
             <Stack direction="row" alignItems="center" spacing={1}>
               <LeaderboardIcon sx={{ color, fontSize: 20 }} />
@@ -285,7 +285,7 @@ function StandingsPage() {
                 Stagione {data?.season || '—'} · {data?.standings?.length || 0} squadre
               </Typography>
             </Stack>
-            <Typography variant="caption" color="text.secondary">
+            <Typography variant="caption" color="text.secondary" sx={{ flexShrink: 0 }}>
               Aggiornata automaticamente dopo ogni giornata
             </Typography>
           </Stack>
