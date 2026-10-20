@@ -53,6 +53,9 @@ function createApiClient(token = null) {
     app_key: scraperConfig.appKey,
     accept: 'application/json',
     'content-type': 'application/json',
+    'user-agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+    origin: 'https://leghe.fantacalcio.it',
+    referer: 'https://leghe.fantacalcio.it/',
   }
   if (token) headers.authorization = `Bearer ${token}`
   return axios.create({ baseURL: scraperConfig.apiBaseUrl, headers, timeout: scraperConfig.requestTimeout })
@@ -180,7 +183,13 @@ async function loginLegacy() {
       jar: cookieJar,
       withCredentials: true,
       timeout: scraperConfig.requestTimeout,
-      headers: { app_key: scraperConfig.appKey, 'Content-Type': 'application/json' },
+      headers: {
+        app_key: scraperConfig.appKey,
+        'Content-Type': 'application/json',
+        'user-agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        origin: 'https://leghe.fantacalcio.it',
+        referer: 'https://leghe.fantacalcio.it/',
+      },
     }))
 
     await loginClient.post('/onboarding/v1/login', { username, password })

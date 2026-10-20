@@ -13,10 +13,11 @@
 
 require('dotenv').config()
 const axios = require('axios')
+const scraperConfig = require('../config/scraper')
 
-const APP_KEY = 'ICiELOObd5DF5uJEATi77CRvHiiRuMU0'
-const BASE = 'https://apileague.fantacalcio.it'
-const LEGA_SLUG = process.env.FC_LEGA_SLUG || 'lega-liz-zar'
+const APP_KEY = scraperConfig.appKey
+const BASE = scraperConfig.apiBaseUrl
+const LEGA_SLUG = scraperConfig.legaSlug
 
 async function main() {
   // ── 1. VALIDAZIONE CREDENZIALI ─────────────────────────────────────────────
@@ -39,6 +40,9 @@ async function main() {
       app_key: APP_KEY,
       accept: 'application/json',
       'content-type': 'application/json',
+      'user-agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+      origin: 'https://leghe.fantacalcio.it',
+      referer: 'https://leghe.fantacalcio.it/',
     },
     timeout: 15000,
   })
