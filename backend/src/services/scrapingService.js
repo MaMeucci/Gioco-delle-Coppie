@@ -289,7 +289,7 @@ async function getLeagueStatus() {
  * Costruisce anche la mappa teamSerieMap: { leagueTeamId → "A"|"B" }
  */
 async function getCompetitions() {
-  if (sessionState.competitionId) {
+  if (sessionState.competitionId && sessionState.competitionIdB && Object.keys(sessionState.teamSerieMap || {}).length > 0) {
     return {
       competitionId: sessionState.competitionId,
       competitionIdB: sessionState.competitionIdB,
@@ -298,44 +298,71 @@ async function getCompetitions() {
     }
   }
 
-  const client = await getAuthClient()
-  const response = await withRetry(() => client.get('/onboarding/v1/league/competitions'))
-  const comps = Array.isArray(response.data) ? response.data : []
+  try {
+    const client = await getAuthClient()
+    const response = await withRetry(() => client.get('/onboarding/v1/league/competitions'))
+    const comps = Array.isArray(response.data) ? response.data : []
 
-  sessionState.allCompetitions = comps
-  console.log('[Scraper] Competizioni trovate:', comps.map(c => `${c.id}:"${c.name}"(type=${c.type})`).join(' | '))
+    sessionState.allCompetitions = comps
+    console.log('[Scraper] Competizioni trovate:', comps.map(c => `${c.id}:"${c.name}"(type=${c.type})`).join(' | '))
 
-  // Filtra i campionati (type=1) non eliminati
-  const campionati = comps.filter(c => c.type === 1 && !c.del)
+    // Filtra i campionati (type=1) non eliminati
+    const campionati = comps.filter(c => c.type === 1 && !c.del)
 
-  if (!campionati.length) throw new Error('[Scraper] Nessun Campionato (type=1) trovato nella lega')
+    if (campionati.length) {
+      // Identifica Serie A e Serie B per nome
+      // Convenzione: il nome con "B" (maiuscolo) o "Serie B" → B, altrimenti → A
+      const campA = campionati.find(c => /serie\s*a/i.test(c.name)) || campionati[0]
+      const campB = campionati.find(c => /serie\s*b/i.test(c.name)) || campionati[1] || null
 
-  // Identifica Serie A e Serie B per nome
-  // Convenzione: il nome con "B" (maiuscolo) o "Serie B" → B, altrimenti → A
-  const campA = campionati.find(c => /serie\s*a/i.test(c.name)) || campionati[0]
-  const campB = campionati.find(c => /serie\s*b/i.test(c.name)) || campionati[1] || null
+      sessionState.competitionId = campA.id
+      sessionState.competitionIdB = campB?.id || null
 
-  sessionState.competitionId = campA.id
-  sessionState.competitionIdB = campB?.id || null
+      console.log(`[Scraper] Campionato Serie A: id=${campA.id}, name="${campA.name}"`)
+      if (campB) console.log(`[Scraper] Campionato Serie B: id=${campB.id}, name="${campB.name}"`)
+      else console.log('[Scraper] Nessun Campionato Serie B trovato — lega a serie singola')
 
-  console.log(`[Scraper] Campionato Serie A: id=${campA.id}, name="${campA.name}"`)
-  if (campB) console.log(`[Scraper] Campionato Serie B: id=${campB.id}, name="${campB.name}"`)
-  else console.log('[Scraper] Nessun Campionato Serie B trovato — lega a serie singola')
+      // Costruisce la mappa teamId → serie dai tmids delle competizioni
+      const teamSerieMap = {}
+      ;(campA.tmids || []).forEach(id => { teamSerieMap[String(id)] = 'A' })
+      ;(campB?.tmids || []).forEach(id => { teamSerieMap[String(id)] = 'B' })
+      sessionState.teamSerieMap = teamSerieMap
 
-  // Costruisce la mappa teamId → serie dai tmids delle competizioni
-  const teamSerieMap = {}
-  ;(campA.tmids || []).forEach(id => { teamSerieMap[String(id)] = 'A' })
-  ;(campB?.tmids || []).forEach(id => { teamSerieMap[String(id)] = 'B' })
-  sessionState.teamSerieMap = teamSerieMap
+      console.log(`[Scraper] teamSerieMap costruita: A=${Object.values(teamSerieMap).filter(v => v === 'A').length} squadre, B=${Object.values(teamSerieMap).filter(v => v === 'B').length} squadre`)
 
-  console.log(`[Scraper] teamSerieMap costruita: A=${Object.values(teamSerieMap).filter(v => v === 'A').length} squadre, B=${Object.values(teamSerieMap).filter(v => v === 'B').length} squadre`)
-
-  return {
-    competitionId: campA.id,
-    competitionIdB: campB?.id || null,
-    teamSerieMap,
-    all: comps,
+      return {
+        competitionId: campA.id,
+        competitionIdB: campB?.id || null,
+        teamSerieMap,
+        all: comps,
+      }
+    }
+  } catch (err) {
+    console.warn('[Scraper] Impossibile recuperare competizioni da API onboarding, uso fallback DB:', err.message)
   }
+
+  // Fallback: carica la mappa delle serie dal DB (collection Team)
+  try {
+    const teams = await Team.find({ season: scraperConfig.season, active: true })
+    if (teams && teams.length > 0) {
+      const teamSerieMap = {}
+      teams.forEach(t => { teamSerieMap[String(t.leagueTeamId)] = t.serie })
+      sessionState.competitionId = 336979
+      sessionState.competitionIdB = 337020
+      sessionState.teamSerieMap = teamSerieMap
+      console.log(`[Scraper] teamSerieMap caricata da DB: ${teams.length} squadre (A=${teams.filter(t => t.serie === 'A').length}, B=${teams.filter(t => t.serie === 'B').length})`)
+      return {
+        competitionId: 336979,
+        competitionIdB: 337020,
+        teamSerieMap,
+        all: [],
+      }
+    }
+  } catch (dbErr) {
+    console.warn('[Scraper] Errore caricamento squadre da DB:', dbErr.message)
+  }
+
+  throw new Error('[Scraper] Nessun Campionato trovato né su API né nel DB')
 }
 
 // ─── Impostazioni lega ────────────────────────────────────────────────────────
@@ -531,7 +558,12 @@ async function getLeagueTeams() {
  * poi unisce i risultati assegnando la serie corretta tramite teamSerieMap.
  */
 async function getMatchdayScores(matchday) {
-  if (!isTokenValid()) await login()
+  try {
+    if (!isTokenValid()) await login()
+  } catch (err) {
+    console.warn('[Scraper] Login onboarding non riuscito, procedo con legacy cookie:', err.message)
+  }
+
   const { competitionId, competitionIdB, teamSerieMap } = await getCompetitions()
   // Assicura che il cookie FCLeague2026 sia disponibile per il legacy endpoint
   await loginLegacy()
